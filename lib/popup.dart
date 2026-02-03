@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'akun1.dart';
-import 'akun2.dart';
-import 'akun3.dart';
 
 class PopupGooglePage extends StatelessWidget {
   const PopupGooglePage({super.key});
@@ -82,7 +80,7 @@ class PopupGooglePage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AccountPage2(),
+                              builder: (context) => const AccountPage1(),
                             ),
                           );
                         },
@@ -98,7 +96,7 @@ class PopupGooglePage extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AccountPage3(),
+                              builder: (context) => const AccountPage1(),
                             ),
                           );
                         },

@@ -11,40 +11,43 @@ dependencies:
   flutter:
     sdk: flutter
 
-  firebase_core: ^4.2.1
-  firebase_auth: ^6.1.2
-  cloud_firestore: ^6.1.0
+  # ===== FIREBASE (STABIL & SALING COCOK) =====
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.0
+  cloud_firestore: ^4.15.0
+  firebase_storage: ^11.7.7
+
+  # ===== AUTH & MEDIA =====
   google_sign_in: ^6.2.1
-  file_picker: ^10.3.7
-  share_plus: ^12.0.1
-  image_picker: ^1.2.1
-  flutter_lints: ^6.0.0
+  image_picker: ^1.1.2
+  file_picker: ^8.0.0   # ⬅️ PENTING! JANGAN VERSI 6+
+  share_plus: ^7.2.1
+  crypto: ^3.0.3
+  http: ^1.2.0
+
+  # ===== LOCAL STORAGE =====
+  shared_preferences: ^2.2.3
+
+  # ===== DATABASE & UTIL =====
   sqflite: ^2.3.0
   path: ^1.9.0
-  cupertino_icons: ^1.0.8
+
+  # ===== UI =====
   fl_chart: ^0.65.0
-  http: ^1.2.0
+  cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons: ^0.13.1   # tetap dipakai
-  # flutter_launcher_name DIHAPUS karena TIDAK SUPPORT null safety
 
-flutter_icons:
-  android: true
-  ios: true
-  image_path: "assets/images/logo.png"
-  android_application_name: "Kawal Kebun"   # ganti nama app disini
-  ios_application_name: "Kawal Kebun"
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
-
   uses-material-design: true
 
   assets:
     - assets/images/logo.png
-    - assets/images/@jimmyyjp.jpg
     - assets/images/download (3).jpg
     - assets/images/Me.jpg
     - assets/images/google.jpg

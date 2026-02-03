@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'katasandi2.dart'; // ke halaman berikutnya
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'user_session.dart'; // session untuk userId
 
 class KataSandi1 extends StatefulWidget {
   const KataSandi1({super.key});
@@ -9,77 +10,73 @@ class KataSandi1 extends StatefulWidget {
 }
 
 class _KataSandi1State extends State<KataSandi1> {
-  final TextEditingController _passwordController = TextEditingController();
+  final passC = TextEditingController();
+  bool saving = false;
+
+  Future<void> _savePassword() async {
+    final newPass = passC.text.trim();
+
+    if (newPass.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password minimal 6 karakter")),
+      );
+      return;
+    }
+
+    if (UserSession.userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User tidak ditemukan")),
+      );
+      return;
+    }
+
+    try {
+      setState(() => saving = true);
+
+      // update Firestore password
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(UserSession.userId)
+          .set({
+        'password': newPass,
+        'hasPassword': true,
+      }, SetOptions(merge: true));
+
+      // update session
+      UserSession.hasPassword = true;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password berhasil diperbarui")),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal menyimpan: $e")),
+      );
+    } finally {
+      setState(() => saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.green[700],
-        title: const Text(
-          'Kata sandi',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-      ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFFCC80), Color(0xFFFFD54F)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
-        ),
-        padding: const EdgeInsets.all(16.0),
+      appBar: AppBar(title: const Text("Kata Sandi"), backgroundColor: Colors.green),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 20),
-            const Text(
-              'Kata sandi saat ini',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 8),
             TextField(
-              controller: _passwordController,
+              controller: passC,
               obscureText: true,
-              decoration: InputDecoration(
-                hintText: '**********',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  vertical: 10,
-                  horizontal: 10,
-                ),
-              ),
+              decoration: const InputDecoration(labelText: "Password Baru"),
             ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange[200],
-                  foregroundColor: Colors.black,
-                  side: const BorderSide(color: Colors.black54, width: 1),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  elevation: 0,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const KataSandi2()),
-                  );
-                },
-                child: const Text('Ubah sandi'),
-              ),
-            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: saving ? null : _savePassword,
+              child: Text(saving ? "Menyimpan..." : "Simpan"),
+            )
           ],
         ),
       ),

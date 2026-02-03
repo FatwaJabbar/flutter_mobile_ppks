@@ -1,138 +1,176 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import '../services/user_service.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'user_session.dart'; // ⭐ SESSION
 
-
-class EditProfilPage extends StatelessWidget {
+class EditProfilPage extends StatefulWidget {
   const EditProfilPage({super.key});
 
   @override
+  State<EditProfilPage> createState() => _EditProfilPageState();
+}
+
+class _EditProfilPageState extends State<EditProfilPage> {
+  final namaC = TextEditingController();
+  final bioC = TextEditingController();
+  final telpC = TextEditingController();
+
+  Uint8List? fotoBaru;
+  Uint8List? fotoAwal;
+  bool isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (UserSession.userId == null) return;
+
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(UserSession.userId)
+        .get();
+
+    if (doc.exists) {
+      final data = doc.data()!;
+      namaC.text = data['nama'] ?? '';
+      bioC.text = data['bio'] ?? '';
+      telpC.text = data['telp'] ?? '';
+
+      final fotoBase64 = data['fotoBase64'];
+      if (fotoBase64 != null && fotoBase64.toString().isNotEmpty) {
+        fotoAwal = base64Decode(fotoBase64);
+      }
+      setState(() {});
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50,
+      maxWidth: 800,
+    );
+
+    if (file != null) {
+      fotoBaru = await file.readAsBytes();
+      setState(() {});
+    }
+  }
+
+  Future<void> _save() async {
+    if (isSaving) return;
+
+    if (UserSession.userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("User tidak ditemukan")),
+      );
+      return;
+    }
+
+    try {
+      setState(() => isSaving = true);
+
+      final Map<String, dynamic> data = {
+        'nama': namaC.text.trim(),
+        'bio': bioC.text.trim(),
+        'telp': telpC.text.trim(),
+      };
+
+      if (fotoBaru != null) {
+        data['fotoBase64'] = base64Encode(fotoBaru!);
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(UserSession.userId)
+          .set(data, SetOptions(merge: true));
+
+      // 🔥 UPDATE SESSION LANGSUNG
+      UserSession.nama = namaC.text.trim();
+      UserSession.bio = bioC.text.trim();
+      UserSession.telp = telpC.text.trim();
+      if (fotoBaru != null) {
+        UserSession.fotoBase64 = base64Encode(fotoBaru!);
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Gagal menyimpan: $e")),
+      );
+    } finally {
+      setState(() => isSaving = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ImageProvider avatar;
+    if (fotoBaru != null) {
+      avatar = MemoryImage(fotoBaru!);
+    } else if (fotoAwal != null) {
+      avatar = MemoryImage(fotoAwal!);
+    } else if ((UserSession.fotoGoogleUrl ?? '').isNotEmpty) {
+      avatar = NetworkImage(UserSession.fotoGoogleUrl!);
+    } else {
+      avatar = const AssetImage('assets/images/default_avatar.png');
+    }
+
     return Scaffold(
-      // Latar belakang gradasi oranye ke kuning
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFFECB3), Color(0xFFFFC107)],
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-          ),
+      backgroundColor: const Color(0xFFFFF8E1),
+      appBar: AppBar(
+        backgroundColor: Colors.green,
+        title: const Text(
+          "Edit Profil",
+          style: TextStyle(color: Colors.white),
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // ====== APPBAR CUSTOM ======
-              Container(
-                color: const Color(0xFF009688),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                width: double.infinity,
-                child: Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.black),
-                      onPressed: () {
-                        Navigator.pop(context);
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      "Edit Profil",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // ====== FOTO PROFIL ======
-              const CircleAvatar(
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 30),
+            GestureDetector(
+              onTap: _pickImage,
+              child: CircleAvatar(
                 radius: 50,
                 backgroundColor: Colors.white,
-                child: Icon(
-                  Icons.person_outline,
-                  size: 70,
-                  color: Colors.redAccent,
-                ),
+                backgroundImage: avatar,
               ),
-
-              const SizedBox(height: 30),
-
-              // ====== FORM ======
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text("Nama"),
-                    const SizedBox(height: 5),
-                    _buildTextField(),
-
-                    const SizedBox(height: 15),
-                    const Text("Email"),
-                    const SizedBox(height: 5),
-                    _buildTextField(),
-
-                    const SizedBox(height: 15),
-                    const Text("Bio"),
-                    const SizedBox(height: 5),
-                    _buildTextField(),
-
-                    const SizedBox(height: 15),
-                    const Text("No Handphone"),
-                    const SizedBox(height: 5),
-                    _buildTextField(),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // ====== TOMBOL SIMPAN ======
-              SizedBox(
-                width: 90,
-                height: 28,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange[800],
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    padding: EdgeInsets.zero,
-                  ),
-                  child: const Text(
-                    "simpan",
-                    style: TextStyle(fontSize: 12, color: Colors.black),
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 30),
+            _field("Nama", namaC),
+            _field("Bio", bioC),
+            _field("No HP", telpC, isNumber: true),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: isSaving ? null : _save,
+              child: Text(isSaving ? "Menyimpan..." : "Simpan"),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // ====== FIELD KOTAK PUTIH ======
-  static Widget _buildTextField() {
-    return TextField(
-      decoration: InputDecoration(
-        filled: true,
-        fillColor: Colors.white,
-        isDense: true,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(4),
-          borderSide: BorderSide.none,
-        ),
+  Widget _field(String label, TextEditingController c, {bool isNumber = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 6),
+      child: TextField(
+        controller: c,
+        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        inputFormatters: isNumber ? [FilteringTextInputFormatter.digitsOnly] : null,
+        decoration: const InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+        ).copyWith(labelText: label),
       ),
     );
   }

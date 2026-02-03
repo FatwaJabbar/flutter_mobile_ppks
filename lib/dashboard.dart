@@ -1,6 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // ⭐ DITAMBAHKAN
-
+import 'package:firebase_auth/firebase_auth.dart';
 import 'akun1.dart';
 import 'catatpanen.dart';
 import 'dokumentasi.dart';
@@ -12,6 +12,7 @@ import 'catatrawat.dart';
 import 'daftar_kebun.dart';
 import 'pengawal.dart';
 import 'riwayat.dart';
+import 'user_session.dart'; // ⭐ USER SESSION
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -29,7 +30,6 @@ class _DashboardPageState extends State<DashboardPage> {
     const AccountPage1(),
   ];
 
-  // ⭐ DIPERBAIKI: cukup ganti index, tidak perlu Navigator
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -61,10 +61,25 @@ class DashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ⭐ AMBIL DATA USER GOOGLE YANG SEDANG LOGIN
-    final user = FirebaseAuth.instance.currentUser;
-    final displayName = user?.displayName ?? 'User';
-    final photoUrl = user?.photoURL;
+    // ===================== AMBIL DATA USER =====================
+    String displayName = 'User';
+    ImageProvider avatar = const AssetImage('assets/images/@jimmyyjp.jpg');
+
+    if (UserSession.nama != null) {
+      displayName = UserSession.nama!;
+      if ((UserSession.fotoBase64 ?? '').isNotEmpty) {
+        avatar = MemoryImage(base64Decode(UserSession.fotoBase64!));
+      } else if ((UserSession.fotoGoogleUrl ?? '').isNotEmpty) {
+        avatar = NetworkImage(UserSession.fotoGoogleUrl!);
+      }
+    } else {
+      // Login Google fallback
+      final user = FirebaseAuth.instance.currentUser;
+      displayName = user?.displayName ?? 'User';
+      if (user?.photoURL != null && user!.photoURL!.isNotEmpty) {
+        avatar = NetworkImage(user.photoURL!);
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFF8E1),
@@ -75,11 +90,8 @@ class DashboardContent extends StatelessWidget {
               // ================= HEADER ==================
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  color: Colors.green,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(color: Colors.green),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -88,25 +100,18 @@ class DashboardContent extends StatelessWidget {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                              builder: (context) => const AccountPage1()),
+                          MaterialPageRoute(builder: (_) => const AccountPage1()),
                         );
                       },
                       child: Row(
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            // ⭐ PAKAI FOTO GOOGLE KALAU ADA, KALAU TIDAK PAKAI ASSET LAMA
-                            backgroundImage: (photoUrl != null &&
-                                    photoUrl.isNotEmpty)
-                                ? NetworkImage(photoUrl)
-                                : const AssetImage(
-                                        'assets/images/@jimmyyjp.jpg')
-                                    as ImageProvider,
+                            backgroundImage: avatar,
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            "Halo, $displayName", // ⭐ NAMA DIAMBIL DARI AKUN GOOGLE
+                            "Halo, $displayName",
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -144,16 +149,10 @@ class DashboardContent extends StatelessWidget {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const GrafikCPOPage()),
+                                  MaterialPageRoute(builder: (_) => const GrafikCPOPage()),
                                 );
                               },
-                              child: _infoCard(
-                                "CPO International",
-                                "Rp.",
-                                "Tanggal",
-                              ),
+                              child: _infoCard("CPO International", "Rp.", "Tanggal"),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -162,16 +161,10 @@ class DashboardContent extends StatelessWidget {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
-                                      builder: (context) =>
-                                          const GrafikTBSPage()),
+                                  MaterialPageRoute(builder: (_) => const GrafikTBSPage()),
                                 );
                               },
-                              child: _infoCard(
-                                "Harga TBS Disbun Riau",
-                                "Rp.",
-                                "Tanggal",
-                              ),
+                              child: _infoCard("Harga TBS Disbun Riau", "Rp.", "Tanggal"),
                             ),
                           ),
                         ],
@@ -201,34 +194,25 @@ class DashboardContent extends StatelessWidget {
                             _menuItem(Icons.nature, "Kebun Saya", onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const DaftarKebunPage()),
+                                MaterialPageRoute(builder: (_) => const DaftarKebunPage()),
                               );
                             }),
                             _menuItem(Icons.agriculture, "Panen", onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const CatatPanenPage()),
+                                MaterialPageRoute(builder: (_) => const CatatPanenPage()),
                               );
                             }),
                             _menuItem(Icons.grass, "Rawat", onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const CatatRawatPage()),
+                                MaterialPageRoute(builder: (_) => const CatatRawatPage()),
                               );
                             }),
-                            _menuItem(Icons.camera_alt, "Dokumentasi",
-                                onTap: () {
+                            _menuItem(Icons.camera_alt, "Dokumentasi", onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const DokumentasiPage()),
+                                MaterialPageRoute(builder: (_) => const DokumentasiPage()),
                               );
                             }),
                           ],
@@ -256,22 +240,16 @@ class DashboardContent extends StatelessWidget {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           children: [
-                            _menuItem(Icons.local_florist, "Pengawal Sawit",
-                                onTap: () {
+                            _menuItem(Icons.local_florist, "Pengawal Sawit", onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const PengawalPage()),
+                                MaterialPageRoute(builder: (_) => const PengawalPage()),
                               );
                             }),
-                            _menuItem(Icons.engineering, "Sewa Agronomis",
-                                onTap: () {
+                            _menuItem(Icons.engineering, "Sewa Agronomis", onTap: () {
                               Navigator.push(
                                 context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const SewaAgronomisPage()),
+                                MaterialPageRoute(builder: (_) => const SewaAgronomisPage()),
                               );
                             }),
                           ],
@@ -314,9 +292,7 @@ class DashboardContent extends StatelessWidget {
                                 onPressed: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(
-                                        builder: (context) =>
-                                            const LaporanPage()),
+                                    MaterialPageRoute(builder: (_) => const LaporanPage()),
                                   );
                                 },
                                 child: const Text("Lihat Detail"),
@@ -348,9 +324,7 @@ class DashboardContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 6),
           Text(price, style: const TextStyle(color: Colors.red, fontSize: 13)),
           const SizedBox(height: 6),
@@ -365,10 +339,7 @@ class DashboardContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.bold,
-        ),
+        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -387,9 +358,7 @@ class DashboardContent extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.orange, size: 35),
             const SizedBox(height: 6),
-            Text(label,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
       ),

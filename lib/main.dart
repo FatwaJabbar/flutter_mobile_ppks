@@ -3,19 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'firebase_options.dart';
 import 'login_page.dart';
 
+// RouteObserver tetap
+final RouteObserver<ModalRoute> routeObserver = RouteObserver<ModalRoute>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Inisialisasi Firebase (penting untuk Google Sign-In + Auth)
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // ✅ Atur status bar & nav bar hanya untuk Android/iOS
+  // 🔥 KUNCI SEBENARNYA ADA DI SINI
+  // LOGOUT FIREBASE SEBELUM APP JALAN
+  await FirebaseAuth.instance.signOut();
+
   if (!kIsWeb) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -34,9 +40,10 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: TampilanAwal(), // ✅ Splash screen dulu
+      navigatorObservers: [routeObserver],
+      home: const TampilanAwal(),
     );
   }
 }
@@ -52,14 +59,10 @@ class _TampilanAwalState extends State<TampilanAwal> {
   @override
   void initState() {
     super.initState();
-
-    // ✅ Setelah 3 detik, pindah ke LoginPage
     Timer(const Duration(seconds: 3), () {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(
-          builder: (context) => LoginPage(),
-        ),
+        MaterialPageRoute(builder: (_) => const LoginPage()),
       );
     });
   }
@@ -80,10 +83,7 @@ class _TampilanAwalState extends State<TampilanAwal> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/logo.png',
-              width: 250,
-            ),
+            Image.asset('assets/images/logo.png', width: 250),
             const SizedBox(height: 8),
             const Text(
               'KAWAL\nKEBUN',
