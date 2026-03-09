@@ -25,8 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   String? savedPassword;
 
   void snack(String msg) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   void masukDashboard() {
@@ -38,43 +37,37 @@ class _LoginPageState extends State<LoginPage> {
 
   // ================= GOOGLE LOGIN =================
   Future<void> signInWithGoogle() async {
+    setState(() => loading = true);
     try {
-      try {
-        await GoogleSignIn().disconnect();
-      } catch (_) {}
-
-      UserCredential userCredential;
-
-      if (kIsWeb) {
-        final provider = GoogleAuthProvider();
-        provider.setCustomParameters({'prompt': 'select_account'});
-        userCredential = await FirebaseAuth.instance.signInWithPopup(provider);
-      } else {
-        final googleSignIn = GoogleSignIn(scopes: ['email']);
-        final googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
-          snack('Login dibatalkan');
-          return;
-        }
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        userCredential =
-            await FirebaseAuth.instance.signInWithCredential(credential);
+      final googleSignIn = GoogleSignIn(scopes: ['email']);
+      // PAKSA user pilih akun
+      final googleUser = await googleSignIn.signInSilently();
+      if (googleUser != null) {
+        await googleSignIn.disconnect();
       }
-
+      final selectedUser = await googleSignIn.signIn(); // Paksa pilih akun
+      if (selectedUser == null) {
+        snack('Login Google dibatalkan');
+        setState(() => loading = false);
+        return;
+      }
+      final googleAuth = await selectedUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
       final user = userCredential.user!;
-      final ref =
-          FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final doc = await ref.get();
 
-      // ===== MODIFIKASI: AUTO REGISTER GOOGLE USER BARU =====
+      // Auto-register jika user baru
       if (!doc.exists) {
         await ref.set({
           'nama': user.displayName ?? 'User',
-          'email': user.email,
+          'email': user.email ?? '',
           'bio': '',
           'telp': '',
           'fotoBase64': '',
@@ -92,17 +85,19 @@ class _LoginPageState extends State<LoginPage> {
       UserSession.bio = data['bio'] ?? '';
       UserSession.telp = data['telp'] ?? '';
       UserSession.fotoBase64 = data['fotoBase64'] ?? '';
-      UserSession.fotoGoogleUrl =
-          user.photoURL ?? data['fotoGoogleUrl'] ?? '';
+      UserSession.fotoGoogleUrl = user.photoURL ?? data['fotoGoogleUrl'] ?? '';
       UserSession.hasPassword = data['hasPassword'] ?? false;
+      UserSession.isGoogleUser = true;
 
       masukDashboard();
     } catch (e) {
       snack('Login Google gagal');
+    } finally {
+      setState(() => loading = false);
     }
   }
 
-  // ================= CEK USERNAME =================
+  // ================= USERNAME LOGIN =================
   Future<void> cekUsername() async {
     final username = usernameController.text.trim();
     if (username.isEmpty) {
@@ -111,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() => loading = true);
-
     try {
       final q = await FirebaseFirestore.instance
           .collection('users')
@@ -135,6 +129,7 @@ class _LoginPageState extends State<LoginPage> {
         loading = false;
       });
 
+      // Jika user belum pakai password, langsung login
       if (!showPassword) {
         UserSession.userId = doc.id;
         UserSession.nama = data['nama'] ?? 'User';
@@ -143,6 +138,7 @@ class _LoginPageState extends State<LoginPage> {
         UserSession.fotoBase64 = data['fotoBase64'] ?? '';
         UserSession.fotoGoogleUrl = data['fotoGoogleUrl'] ?? '';
         UserSession.hasPassword = false;
+        UserSession.isGoogleUser = false;
         masukDashboard();
       }
     } catch (e) {
@@ -151,53 +147,41 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ================= CEK PASSWORD =================
   Future<void> cekPassword() async {
     final password = passwordController.text.trim();
     if (password.isEmpty) {
       snack('Password kosong');
       return;
     }
-
     if (userId == null) {
       snack('User belum valid');
       return;
     }
 
     setState(() => loading = true);
-
     try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .get();
-
+      final doc =
+          await FirebaseFirestore.instance.collection('users').doc(userId).get();
       if (!doc.exists) {
         snack('User tidak ditemukan');
         setState(() => loading = false);
         return;
       }
-
       final data = doc.data();
-      if (data == null) {
-        snack('Data user kosong');
-        setState(() => loading = false);
-        return;
-      }
-
-      if ((data['password'] ?? '').toString() != password) {
+      if ((data?['password'] ?? '').toString() != password) {
         snack('Password salah');
         setState(() => loading = false);
         return;
       }
 
       UserSession.userId = doc.id;
-      UserSession.nama = data['nama'] ?? 'User';
-      UserSession.bio = data['bio'] ?? '';
-      UserSession.telp = data['telp'] ?? '';
-      UserSession.fotoBase64 = data['fotoBase64'] ?? '';
-      UserSession.fotoGoogleUrl = data['fotoGoogleUrl'] ?? '';
+      UserSession.nama = data?['nama'] ?? 'User';
+      UserSession.bio = data?['bio'] ?? '';
+      UserSession.telp = data?['telp'] ?? '';
+      UserSession.fotoBase64 = data?['fotoBase64'] ?? '';
+      UserSession.fotoGoogleUrl = data?['fotoGoogleUrl'] ?? '';
       UserSession.hasPassword = true;
+      UserSession.isGoogleUser = false;
 
       masukDashboard();
     } catch (e) {
@@ -250,12 +234,12 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 40),
 
-                        // GOOGLE
+                        // GOOGLE LOGIN
                         SizedBox(
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: signInWithGoogle,
+                            onPressed: loading ? null : signInWithGoogle,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               elevation: 1,
@@ -283,10 +267,9 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 12),
 
-                        // NO HP
+                        // LOGIN NO HP (placeholder)
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -318,10 +301,9 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 24),
 
-                        // === DIVIDER + KETERANGAN (FINAL) ===
+                        // DIVIDER
                         Row(
                           children: const [
                             Expanded(child: Divider(thickness: 1)),
@@ -338,9 +320,7 @@ class _LoginPageState extends State<LoginPage> {
                             Expanded(child: Divider(thickness: 1)),
                           ],
                         ),
-
                         const SizedBox(height: 8),
-
                         const Text(
                           "Masuk menggunakan akun yang sudah terdaftar",
                           textAlign: TextAlign.center,
@@ -349,7 +329,6 @@ class _LoginPageState extends State<LoginPage> {
                             color: Colors.black54,
                           ),
                         ),
-
                         const SizedBox(height: 24),
 
                         // USERNAME
@@ -385,7 +364,7 @@ class _LoginPageState extends State<LoginPage> {
 
                         const SizedBox(height: 20),
 
-                        // BUTTON OK / MASUK
+                        // BUTTON MASUK
                         SizedBox(
                           width: double.infinity,
                           height: 48,

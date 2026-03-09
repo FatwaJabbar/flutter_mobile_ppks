@@ -3,7 +3,7 @@ import 'dashboard.dart';
 import 'akun1.dart';
 import 'tambahpanen.dart';
 import 'catatrawat.dart';
-import 'riwayat.dart'; // ✅ Tambahkan import ke halaman Riwayat
+import 'riwayat.dart';
 
 class DaftarKebunPage extends StatelessWidget {
   const DaftarKebunPage({super.key});
@@ -15,16 +15,20 @@ class DaftarKebunPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text(
           "Daftar Kebun",
-          style: TextStyle(color: Colors.black),
+          style: TextStyle(
+            color: Color.fromARGB(255, 255, 255, 255),
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
         ),
         backgroundColor: Colors.green,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Color.fromARGB(255, 255, 255, 255)),
+        elevation: 2,
       ),
 
-      // ✅ Navbar Bawah — gaya sama seperti sebelumnya
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
-        currentIndex: 1, // posisi tengah aktif
+        currentIndex: 1,
         selectedItemColor: Colors.green,
         unselectedItemColor: Colors.grey,
         showSelectedLabels: false,
@@ -37,7 +41,6 @@ class DaftarKebunPage extends StatelessWidget {
               MaterialPageRoute(builder: (context) => const DashboardPage()),
             );
           } else if (index == 1) {
-            // ✅ Pindah ke RiwayatPage
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const RiwayatPage()),
@@ -56,55 +59,101 @@ class DaftarKebunPage extends StatelessWidget {
         ],
       ),
 
-      // ✅ Body tetap sama
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            const SizedBox(height: 16),
             const Text(
               "Optimalkan Kebun Anda",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              "Yuk, catat penjualan panen dan perawatan kebun untuk mengetahui performa kebun Anda",
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 22,
+                color: Colors.black87,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
+            const Text(
+              "Catat panen dan perawatan kebun agar performa kebun Anda maksimal.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, color: Colors.black87),
+            ),
+            const SizedBox(height: 24),
 
-            // Tombol Catat Panen & Catat Rawat
+            // ================= BUTTON CARDS =================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const TambahPanenPage(),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TambahPanenPage(),
+                        ),
+                      );
+                    },
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    );
-                  },
-                  child: const Text("Catat Panen"),
-                ),
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.green),
+                      elevation: 6,
+                      color: Colors.green,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: const [
+                            Icon(Icons.agriculture, size: 40, color: Colors.white),
+                            SizedBox(height: 12),
+                            Text(
+                              "Catat Panen",
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const CatatRawatPage(),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const CatatRawatPage(),
+                        ),
+                      );
+                    },
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    );
-                  },
-                  child: const Text(
-                    "Catat Rawat",
-                    style: TextStyle(color: Colors.green),
+                      elevation: 6,
+                      color: Colors.white,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Column(
+                          children: [
+                            Icon(Icons.water_drop, size: 40, color: Colors.green),
+                            const SizedBox(height: 12),
+                            const Text(
+                              "Catat Rawat",
+                              style: TextStyle(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
               ],

@@ -1,7 +1,6 @@
 name: flutter_mobile_ppks
 description: "A new Flutter project."
 publish_to: 'none'
-
 version: 1.0.0+1
 
 environment:
@@ -11,41 +10,44 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # ===== FIREBASE (STABIL & SALING COCOK) =====
+  google_fonts: ^6.1.0
+  # ===== FIREBASE (OPSIONAL / BACKUP DATA) =====
   firebase_core: ^2.27.0
   firebase_auth: ^4.17.0
   cloud_firestore: ^4.15.0
   firebase_storage: ^11.7.7
 
-  # ===== AUTH & MEDIA =====
+  # ===== AUTH & NETWORK =====
   google_sign_in: ^6.2.1
-  image_picker: ^1.1.2
-  file_picker: ^8.0.0   # ⬅️ PENTING! JANGAN VERSI 6+
-  share_plus: ^7.2.1
-  crypto: ^3.0.3
   http: ^1.2.0
+  crypto: ^3.0.3
 
-  # ===== LOCAL STORAGE =====
+  # ===== LOCAL STORAGE (ANDROID + WEB) =====
   shared_preferences: ^2.2.3
 
-  # ===== DATABASE & UTIL =====
-  sqflite: ^2.3.0
-  path: ^1.9.0
+  # ===== FILE & MEDIA =====
+  image_picker: ^1.1.2
+  file_picker: ^8.0.0
+  share_plus: ^7.2.1
 
-  # ===== UI =====
-  fl_chart: ^0.65.0
+  # ===== DATABASE (OPSIONAL, BELUM DIPAKAI) =====
+  sqflite: ^2.3.0
+  path: ^1.8.3 
+  sqflite_common_ffi: ^2.2.0
+
+  # ===== FORMAT & UI =====
+  intl: ^0.18.1
+  fl_chart: ^0.66.0
   cupertino_icons: ^1.0.8
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/images/logo.png
     - assets/images/download (3).jpg

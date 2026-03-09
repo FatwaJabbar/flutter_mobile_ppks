@@ -1,11 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'analisa_kebun.dart';
-import 'laporan_detail.dart';
-import 'riwayat.dart'; // ✅ Tambahan untuk navigasi ke Riwayat
-import 'akun1.dart'; // ✅ Tambahan untuk navigasi ke Akun
+import 'riwayat.dart';
+import 'akun1.dart';
+import 'database_helper.dart';
 
-class LaporanPage extends StatelessWidget {
+class LaporanPage extends StatefulWidget {
   const LaporanPage({super.key});
+
+  @override
+  State<LaporanPage> createState() => _LaporanPageState();
+}
+
+class _LaporanPageState extends State<LaporanPage> {
+  double totalPendapatan = 0;
+  double totalPengeluaran = 0;
+  final NumberFormat _formatter = NumberFormat.decimalPattern('id');
+
+  // Simulasi daftar kebun (bisa diganti dengan query DB masing-masing kebun)
+  List<Map<String, dynamic>> daftarKebun = [
+    {'nama': 'Kebun A', 'lokasi': 'Desa A'},
+    {'nama': 'Kebun B', 'lokasi': 'Desa B'},
+  ];
+
+  Map<String, Map<String, double>> kebunTotals = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _hitungPendapatan();
+  }
+
+  Future<void> _hitungPendapatan() async {
+    final data = await DBHelper.getAll();
+
+    double pendapatan = 0;
+    double pengeluaran = 0;
+    Map<String, Map<String, double>> tempKebunTotals = {};
+
+    for (var item in data) {
+      final type = (item['type'] ?? '').toString().toLowerCase().trim();
+      final berat = (item['berat'] ?? 0).toDouble();
+      final harga = (item['harga'] ?? 0).toDouble();
+      final biaya = (item['biaya'] ?? 0).toDouble();
+      final lainnya = (item['lainnya'] ?? 0).toDouble();
+      final totalBiaya = biaya + lainnya;
+
+      // Asumsi ada field kebun untuk tiap item
+      final kebunName = (item['kebun'] ?? 'Umum').toString();
+
+      if (!tempKebunTotals.containsKey(kebunName)) {
+        tempKebunTotals[kebunName] = {
+          'pendapatan': 0,
+          'pengeluaran': 0,
+        };
+      }
+
+      if (type == 'panen') {
+        pendapatan += berat * harga;
+        tempKebunTotals[kebunName]!['pendapatan'] =
+            tempKebunTotals[kebunName]!['pendapatan']! + (berat * harga);
+      } else {
+        pengeluaran += totalBiaya;
+        tempKebunTotals[kebunName]!['pengeluaran'] =
+            tempKebunTotals[kebunName]!['pengeluaran']! + totalBiaya;
+      }
+    }
+
+    setState(() {
+      totalPendapatan = pendapatan;
+      totalPengeluaran = pengeluaran;
+      kebunTotals = tempKebunTotals;
+    });
+  }
+
+  double get pendapatanBersih => totalPendapatan - totalPengeluaran;
 
   @override
   Widget build(BuildContext context) {
@@ -22,25 +91,21 @@ class LaporanPage extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-
-      // 🔹 Navbar dengan navigasi ke Riwayat & Akun
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
-        currentIndex: 0, // Halaman ini dianggap index ke-0 (Home)
+        currentIndex: 0,
         showSelectedLabels: false,
         showUnselectedLabels: false,
         elevation: 5,
         onTap: (index) {
           if (index == 1) {
-            // ✅ Navigasi ke halaman Riwayat
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const RiwayatPage()),
             );
           } else if (index == 2) {
-            // ✅ Navigasi ke halaman Akun
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const AccountPage1()),
@@ -53,8 +118,6 @@ class LaporanPage extends StatelessWidget {
           BottomNavigationBarItem(icon: Icon(Icons.person), label: ''),
         ],
       ),
-
-      // 🔹 BODY
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -101,39 +164,39 @@ class LaporanPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               elevation: 2,
-              child: const Padding(
-                padding: EdgeInsets.all(14),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   children: [
-                    Text(
+                    const Text(
                       "Pendapatan Bersih Anda",
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
                       ),
                     ),
-                    SizedBox(height: 5),
+                    const SizedBox(height: 5),
                     Text(
-                      "Rp.",
-                      style: TextStyle(
+                      "Rp ${_formatter.format(pendapatanBersih)}",
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
                       ),
                     ),
-                    Divider(thickness: 1),
+                    const Divider(thickness: 1),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Total Pendapatan"),
-                        Text("Rp."),
+                        const Text("Total Pendapatan"),
+                        Text("Rp ${_formatter.format(totalPendapatan)}"),
                       ],
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text("Total Pengeluaran"),
-                        Text("Rp."),
+                        const Text("Total Pengeluaran"),
+                        Text("Rp ${_formatter.format(totalPengeluaran)}"),
                       ],
                     ),
                   ],
@@ -141,81 +204,10 @@ class LaporanPage extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 15),
-            const Text(
-              "Daftar Kebun Anda",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
+
 
             // 🔹 Kartu Daftar Kebun
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LaporanDetailPage(),
-                  ),
-                );
-              },
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                elevation: 2,
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Nama",
-                                  style: TextStyle(fontWeight: FontWeight.w500),
-                                ),
-                                Text("lokasi",
-                                    style: TextStyle(color: Colors.grey)),
-                              ],
-                            ),
-                          ),
-                          Icon(Icons.arrow_forward_ios, size: 18),
-                        ],
-                      ),
-                      Divider(thickness: 1),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text("Pendapatan Bersih",
-                              style: TextStyle(fontWeight: FontWeight.w600)),
-                          Text("Rp."),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text("Total Pendapatan"),
-                          Text("Rp."),
-                        ],
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text("Total Pengeluaran"),
-                          Text("Rp."),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+
           ],
         ),
       ),

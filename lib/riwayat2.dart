@@ -28,11 +28,16 @@ class _Riwayat2PageState extends State<Riwayat2Page> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFD36E),
       appBar: AppBar(
-        title: const Text(
-          "Riwayat",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
         backgroundColor: Colors.green,
+        elevation: 0,
+        title: const Text(
+          "Filter Riwayat",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -41,92 +46,150 @@ class _Riwayat2PageState extends State<Riwayat2Page> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Filter Atas
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: 'Semua Jenis',
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none),
-              ),
+            _headerCard(),
+            const SizedBox(height: 16),
+            _jenisCard(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ================= HEADER =================
+  Widget _headerCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          colors: [
+            Colors.green,
+            Color(0xFF2E7D32),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: const [
+          Text(
+            "Pilih Jenis Riwayat",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 10),
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                hintText: 'Semua Tanggal',
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none),
-              ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            "Tentukan jenis data yang ingin ditampilkan",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
             ),
-            const SizedBox(height: 20),
-            const Text(
-              "Menambahkan Data Bisnis",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("Kebun"),
-                Text("Rating", style: TextStyle(color: Colors.green)),
-              ],
-            ),
-            const SizedBox(height: 5),
-            const Text("date"),
-            const SizedBox(height: 20),
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFE59A),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Jenis",
-                      style: TextStyle(fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  for (var item in jenisList)
-                    RadioListTile<String>(
-                      title: Text(item),
-                      value: item,
-                      groupValue: selectedJenis,
-                      activeColor: Colors.green,
-                      onChanged: (value) {
-                        setState(() {
-                          selectedJenis = value!;
-                        });
-                      },
-                    ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context, selectedJenis);
-                      },
-                      child: const Text("Terapkan"),
-                    ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= CARD JENIS =================
+  Widget _jenisCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          for (var item in jenisList) _radioItem(item),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                ],
+                  elevation: 2,
+                ),
+                onPressed: () {
+                  Navigator.pop(context, selectedJenis);
+                },
+                child: const Text(
+                  "Terapkan Filter",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
+  // ================= RADIO ITEM =================
+  Widget _radioItem(String item) {
+    final isSelected = selectedJenis == item;
+
+    return InkWell(
+      onTap: () {
+        setState(() => selectedJenis = item);
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color.fromARGB(255, 231, 231, 231).withOpacity(0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Radio<String>(
+              value: item,
+              groupValue: selectedJenis,
+              activeColor: Colors.green,
+              onChanged: (value) {
+                setState(() => selectedJenis = value!);
+              },
+            ),
+            Expanded(
+              child: Text(
+                item,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight:
+                      isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ),
           ],
