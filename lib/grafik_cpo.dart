@@ -16,10 +16,67 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
 
   String _getMonthLabel(int bulan) {
     const bulanList = [
-      'Jan','Feb','Mar','Apr','Mei','Jun',
-      'Jul','Agu','Sep','Okt','Nov','Des'
+      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
     ];
     return bulanList[bulan - 1];
+  }
+
+  /// Fungsi untuk menampilkan Dialog Tambah Data
+  void _showAddDataDialog() {
+    final TextEditingController yearController = TextEditingController();
+    final TextEditingController priceController = TextEditingController();
+    int selectedMonth = 1;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Tambah Data CPO"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: yearController,
+                decoration: const InputDecoration(labelText: "Tahun (Contoh: 2024)"),
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              DropdownButtonFormField<int>(
+                value: selectedMonth,
+                decoration: const InputDecoration(labelText: "Bulan"),
+                items: List.generate(12, (index) => index + 1).map((m) {
+                  return DropdownMenuItem(value: m, child: Text(_getMonthLabel(m)));
+                }).toList(),
+                onChanged: (val) => selectedMonth = val!,
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(labelText: "Harga (CPO)"),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
+          ElevatedButton(
+            onPressed: () async {
+              if (yearController.text.isNotEmpty && priceController.text.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('cpo_international').add({
+                  'tahun': int.parse(yearController.text),
+                  'bulan': selectedMonth,
+                  'harga': double.parse(priceController.text),
+                });
+                if (context.mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -29,6 +86,14 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
         title: const Text('Grafik CPO International'),
         backgroundColor: Colors.green,
         centerTitle: true,
+        // MENU DI POJOK KANAN ATAS
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_chart),
+            onPressed: _showAddDataDialog,
+            tooltip: "Tambah Data",
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -37,7 +102,6 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
             .orderBy('bulan')
             .snapshots(),
         builder: (context, snapshot) {
-
           if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -45,12 +109,9 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
           final docs = snapshot.data!.docs;
 
           if (docs.isEmpty) {
-            return const Center(
-              child: Text("Belum ada data CPO"),
-            );
+            return const Center(child: Text("Belum ada data CPO"));
           }
 
-          /// Ambil semua tahun unik
           final years = docs
               .map((e) => (e.data() as Map<String, dynamic>)['tahun'] as int)
               .toSet()
@@ -59,16 +120,13 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
 
           selectedYear ??= years.last;
 
-          /// Filter sesuai tahun dipilih
           final filteredDocs = docs.where((doc) {
             final data = doc.data() as Map<String, dynamic>;
             return data['tahun'] == selectedYear;
           }).toList();
 
           if (filteredDocs.isEmpty) {
-            return const Center(
-              child: Text("Tidak ada data di tahun ini"),
-            );
+            return const Center(child: Text("Tidak ada data di tahun ini"));
           }
 
           List<FlSpot> spots = [];
@@ -85,27 +143,20 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
 
           double minHarga = hargaList.reduce((a, b) => a < b ? a : b);
           double maxHarga = hargaList.reduce((a, b) => a > b ? a : b);
-
-          // Tambahkan margin ±10%
           double margin = (maxHarga - minHarga) * 0.1;
+          if (margin == 0) margin = 100; // Jika semua harga sama
+
           double adjustedMinY = (minHarga - margin).clamp(0, minHarga);
           double adjustedMaxY = maxHarga + margin;
 
-          // Hitung interval otomatis agar angka tidak bertumpuk
           double range = adjustedMaxY - adjustedMinY;
-          double interval = (range / 6).ceilToDouble(); // maksimal 6 angka di sisi kiri
+          double interval = (range / 6).ceilToDouble();
           if (interval < 1) interval = 1;
-
-          // Sesuaikan minY/maxY supaya rapi
-          adjustedMinY = (adjustedMinY / interval).floor() * interval;
-          adjustedMaxY = (adjustedMaxY / interval).ceil() * interval;
 
           return Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-
-                /// DROPDOWN
                 DropdownButton<int>(
                   value: selectedYear,
                   isExpanded: true,
@@ -121,11 +172,9 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
                     });
                   },
                 ),
-
                 const SizedBox(height: 20),
-
                 SizedBox(
-                  height: 300, // tinggi grafik bisa disesuaikan
+                  height: 300,
                   child: LineChart(
                     LineChartData(
                       minY: adjustedMinY,
@@ -142,10 +191,6 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
                             interval: interval,
                             reservedSize: 60,
                             getTitlesWidget: (value, meta) {
-                              // Tampilkan angka utuh, sesuai interval
-                              if ((value - adjustedMinY) % interval != 0) {
-                                return const SizedBox();
-                              }
                               return Text(
                                 formatRupiah.format(value.toInt()),
                                 style: const TextStyle(fontSize: 10),

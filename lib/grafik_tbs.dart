@@ -67,6 +67,71 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
     });
   }
 
+  // --- FUNGSI BARU: DIALOG TAMBAH DATA ---
+  void _showAddDataDialog() {
+    final TextEditingController provController = TextEditingController();
+    final TextEditingController yearController = TextEditingController(text: "2026");
+    final TextEditingController priceController = TextEditingController();
+    int selectedMonth = 1;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Tambah Data TBS"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: provController,
+                decoration: const InputDecoration(labelText: "Provinsi"),
+              ),
+              TextField(
+                controller: yearController,
+                decoration: const InputDecoration(labelText: "Tahun"),
+                keyboardType: TextInputType.number,
+              ),
+              DropdownButtonFormField<int>(
+                value: selectedMonth,
+                decoration: const InputDecoration(labelText: "Bulan"),
+                items: List.generate(12, (index) => index + 1).map((m) {
+                  return DropdownMenuItem(value: m, child: Text("Bulan $m"));
+                }).toList(),
+                onChanged: (val) => selectedMonth = val!,
+              ),
+              TextField(
+                controller: priceController,
+                decoration: const InputDecoration(labelText: "Harga (Rp/Kg)"),
+                keyboardType: TextInputType.number,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
+          ElevatedButton(
+            onPressed: () async {
+              if (provController.text.isNotEmpty && priceController.text.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('tbs_harga').add({
+                  'provinsi': provController.text.trim(),
+                  'tahun': int.parse(yearController.text),
+                  'bulan': selectedMonth,
+                  'harga': double.parse(priceController.text),
+                });
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  loadProvinsi(); // Refresh list filter provinsi
+                  refreshData();  // Refresh grafik otomatis
+                }
+              }
+            },
+            child: const Text("Simpan"),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const bulanList = [
@@ -80,11 +145,17 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
         title: const Text("Grafik Harga TBS"),
         backgroundColor: Colors.green,
         centerTitle: true,
+        // --- TAMBAHAN: TOMBOL TAMBAH DATA ---
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: _showAddDataDialog,
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-
             /// FILTER
             Padding(
               padding: const EdgeInsets.all(12),
@@ -143,7 +214,7 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
-                height: 300, // tinggi grafik lebih kecil, bisa diubah sesuai kebutuhan
+                height: 300,
                 child: FutureBuilder<List<QueryDocumentSnapshot>>(
                   future: _futureData,
                   builder: (context, snapshot) {
@@ -183,8 +254,8 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                     double minHarga = semuaHarga.reduce((a, b) => a < b ? a : b);
                     double maxHarga = semuaHarga.reduce((a, b) => a > b ? a : b);
 
-                    // Tambahkan margin ±20% supaya range lebih tinggi
                     double margin = (maxHarga - minHarga) * 0.2;
+                    if (margin == 0) margin = 100;
                     double adjustedMinY = (minHarga - margin).clamp(0, minHarga);
                     double adjustedMaxY = maxHarga + margin;
 
@@ -242,7 +313,7 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                                 showTitles: true,
                                 getTitlesWidget: (value, meta) {
                                   if (value.toInt() < bulanList.length) {
-                                    return Text(bulanList[value.toInt()]);
+                                    return Text(bulanList[value.toInt()], style: const TextStyle(fontSize: 10));
                                   }
                                   return const Text('');
                                 },
@@ -257,7 +328,7 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                               isCurved: false,
                               barWidth: 3,
                               color: Colors.green,
-                              dotData: FlDotData(show: true),
+                              dotData: const FlDotData(show: true),
                             ),
                           ],
                         ),
