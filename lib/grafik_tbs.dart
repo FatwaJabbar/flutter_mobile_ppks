@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'user_session.dart';
 
 class GrafikTBSPage extends StatefulWidget {
   const GrafikTBSPage({super.key});
@@ -20,6 +21,22 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
 
   final formatRupiah = NumberFormat("#,##0", "id_ID");
 
+  // List 38 Provinsi Indonesia
+  final List<String> daftar38Provinsi = [
+    "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Kepulauan Riau",
+    "Jambi", "Sumatera Selatan", "Kepulauan Bangka Belitung", "Bengkulu", "Lampung",
+    "DKI Jakarta", "Banten", "Jawa Barat", "Jawa Tengah", "Daerah Istimewa Yogyakarta",
+    "Jawa Timur", "Bali", "Nusa Tenggara Barat", "Nusa Tenggara Timur",
+    "Kalimantan Barat", "Kalimantan Tengah", "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara",
+    "Sulawesi Utara", "Gorontalo", "Sulawesi Tengah", "Sulawesi Barat", "Sulawesi Selatan", "Sulawesi Tenggara",
+    "Maluku", "Maluku Utara", "Papua", "Papua Barat", "Papua Selatan", "Papua Tengah", "Papua Pegunungan", "Papua Barat Daya"
+  ];
+
+  final List<String> namaBulanFull = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -28,9 +45,7 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
   }
 
   Future<void> loadProvinsi() async {
-    final snapshot =
-        await FirebaseFirestore.instance.collection('tbs_harga').get();
-
+    final snapshot = await FirebaseFirestore.instance.collection('tbs_harga').get();
     final provinsiSet = <String>{};
     for (var doc in snapshot.docs) {
       final data = doc.data();
@@ -38,7 +53,6 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
         provinsiSet.add(data['provinsi']);
       }
     }
-
     setState(() {
       provinsiList = ["Semua", ...provinsiSet.toList()..sort()];
     });
@@ -46,11 +60,9 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
 
   Future<List<QueryDocumentSnapshot>> getData() async {
     Query query = FirebaseFirestore.instance.collection('tbs_harga');
-
     if (selectedProvinsi != "Semua") {
       query = query.where('provinsi', isEqualTo: selectedProvinsi);
     }
-
     query = query
         .where('tahun', isGreaterThanOrEqualTo: tahunAwal)
         .where('tahun', isLessThanOrEqualTo: tahunAkhir)
@@ -67,12 +79,12 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
     });
   }
 
-  // --- FUNGSI BARU: DIALOG TAMBAH DATA ---
   void _showAddDataDialog() {
-    final TextEditingController provController = TextEditingController();
+    // Inisialisasi default agar tidak kosong
+    String? selectedProv; 
+    int selectedMonth = 1;
     final TextEditingController yearController = TextEditingController(text: "2026");
     final TextEditingController priceController = TextEditingController();
-    int selectedMonth = 1;
 
     showDialog(
       context: context,
@@ -82,23 +94,34 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: provController,
-                decoration: const InputDecoration(labelText: "Provinsi"),
+              // DROPDOWN PROVINSI (38 Provinsi)
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(labelText: "Pilih Provinsi"),
+                items: daftar38Provinsi.map((prov) {
+                  return DropdownMenuItem(value: prov, child: Text(prov));
+                }).toList(),
+                onChanged: (val) => selectedProv = val,
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: yearController,
                 decoration: const InputDecoration(labelText: "Tahun"),
                 keyboardType: TextInputType.number,
               ),
+              const SizedBox(height: 10),
+              // DROPDOWN BULAN (Nama Bulan)
               DropdownButtonFormField<int>(
                 value: selectedMonth,
                 decoration: const InputDecoration(labelText: "Bulan"),
-                items: List.generate(12, (index) => index + 1).map((m) {
-                  return DropdownMenuItem(value: m, child: Text("Bulan $m"));
-                }).toList(),
+                items: List.generate(12, (index) {
+                  return DropdownMenuItem(
+                    value: index + 1,
+                    child: Text(namaBulanFull[index]),
+                  );
+                }),
                 onChanged: (val) => selectedMonth = val!,
               ),
+              const SizedBox(height: 10),
               TextField(
                 controller: priceController,
                 decoration: const InputDecoration(labelText: "Harga (Rp/Kg)"),
@@ -111,18 +134,22 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Batal")),
           ElevatedButton(
             onPressed: () async {
-              if (provController.text.isNotEmpty && priceController.text.isNotEmpty) {
+              if (selectedProv != null && priceController.text.isNotEmpty) {
                 await FirebaseFirestore.instance.collection('tbs_harga').add({
-                  'provinsi': provController.text.trim(),
+                  'provinsi': selectedProv,
                   'tahun': int.parse(yearController.text),
                   'bulan': selectedMonth,
                   'harga': double.parse(priceController.text),
                 });
                 if (context.mounted) {
                   Navigator.pop(context);
-                  loadProvinsi(); // Refresh list filter provinsi
-                  refreshData();  // Refresh grafik otomatis
+                  loadProvinsi();
+                  refreshData();
                 }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("Mohon lengkapi semua data")),
+                );
               }
             },
             child: const Text("Simpan"),
@@ -134,10 +161,7 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
 
   @override
   Widget build(BuildContext context) {
-    const bulanList = [
-      'Jan','Feb','Mar','Apr','Mei','Jun',
-      'Jul','Agu','Sep','Okt','Nov','Des'
-    ];
+    const bulanSingkat = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F9),
@@ -145,36 +169,30 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
         title: const Text("Grafik Harga TBS"),
         backgroundColor: Colors.green,
         centerTitle: true,
-        // --- TAMBAHAN: TOMBOL TAMBAH DATA ---
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            onPressed: _showAddDataDialog,
-          ),
+          if (UserSession.role == 'admin') 
+            IconButton(
+              icon: const Icon(Icons.add_chart),
+              onPressed: _showAddDataDialog,
+              tooltip: "Tambah Data",
+            ),
         ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-            /// FILTER
             Padding(
               padding: const EdgeInsets.all(12),
               child: Column(
                 children: [
                   DropdownButtonFormField<String>(
                     value: selectedProvinsi,
-                    items: provinsiList
-                        .map((prov) => DropdownMenuItem(
-                              value: prov,
-                              child: Text(prov),
-                            ))
-                        .toList(),
+                    items: provinsiList.map((prov) => DropdownMenuItem(value: prov, child: Text(prov))).toList(),
                     onChanged: (value) {
                       selectedProvinsi = value!;
                       refreshData();
                     },
-                    decoration:
-                        const InputDecoration(labelText: "Pilih Provinsi"),
+                    decoration: const InputDecoration(labelText: "Filter Provinsi"),
                   ),
                   const SizedBox(height: 10),
                   Row(
@@ -183,11 +201,8 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                         child: TextFormField(
                           initialValue: tahunAwal.toString(),
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: "Tahun Awal"),
-                          onChanged: (value) {
-                            tahunAwal = int.tryParse(value) ?? 2026;
-                          },
+                          decoration: const InputDecoration(labelText: "Tahun Awal"),
+                          onChanged: (value) => tahunAwal = int.tryParse(value) ?? 2026,
                           onFieldSubmitted: (_) => refreshData(),
                         ),
                       ),
@@ -196,11 +211,8 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                         child: TextFormField(
                           initialValue: tahunAkhir.toString(),
                           keyboardType: TextInputType.number,
-                          decoration:
-                              const InputDecoration(labelText: "Tahun Akhir"),
-                          onChanged: (value) {
-                            tahunAkhir = int.tryParse(value) ?? 2026;
-                          },
+                          decoration: const InputDecoration(labelText: "Tahun Akhir"),
+                          onChanged: (value) => tahunAkhir = int.tryParse(value) ?? 2026,
                           onFieldSubmitted: (_) => refreshData(),
                         ),
                       ),
@@ -209,8 +221,6 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                 ],
               ),
             ),
-
-            /// GRAFIK
             Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
@@ -223,7 +233,6 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                     }
 
                     final docs = snapshot.data!;
-
                     Map<int, List<double>> bulanHarga = {};
                     List<double> semuaHarga = [];
 
@@ -231,20 +240,15 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                       final data = doc.data() as Map<String, dynamic>;
                       final int bulan = data['bulan'];
                       final double harga = (data['harga'] as num).toDouble();
-
                       bulanHarga.putIfAbsent(bulan, () => []);
                       bulanHarga[bulan]!.add(harga);
                     }
 
                     List<FlSpot> spots = [];
-
                     bulanHarga.forEach((bulan, hargaList) {
-                      double nilai;
-                      if (selectedProvinsi == "Semua") {
-                        nilai = hargaList.reduce((a, b) => a + b) / hargaList.length;
-                      } else {
-                        nilai = hargaList.first;
-                      }
+                      double nilai = selectedProvinsi == "Semua" 
+                          ? hargaList.reduce((a, b) => a + b) / hargaList.length 
+                          : hargaList.first;
                       semuaHarga.add(nilai);
                       spots.add(FlSpot((bulan - 1).toDouble(), nilai));
                     });
@@ -253,12 +257,10 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
 
                     double minHarga = semuaHarga.reduce((a, b) => a < b ? a : b);
                     double maxHarga = semuaHarga.reduce((a, b) => a > b ? a : b);
-
                     double margin = (maxHarga - minHarga) * 0.2;
                     if (margin == 0) margin = 100;
                     double adjustedMinY = (minHarga - margin).clamp(0, minHarga);
                     double adjustedMaxY = maxHarga + margin;
-
                     double range = adjustedMaxY - adjustedMinY;
                     double interval = (range / 10).ceilToDouble();
                     if (interval < 1) interval = 1;
@@ -272,26 +274,19 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                           lineTouchData: LineTouchData(
                             handleBuiltInTouches: true,
                             touchTooltipData: LineTouchTooltipData(
-                              tooltipBgColor: Colors.black87,
                               getTooltipItems: (touchedSpots) {
                                 if (touchedSpots.isEmpty) return [];
                                 final spot = touchedSpots.first;
                                 return [
                                   LineTooltipItem(
                                     formatRupiah.format(spot.y.toInt()),
-                                    const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                                   ),
                                 ];
                               },
                             ),
                           ),
-                          gridData: FlGridData(
-                            show: true,
-                            horizontalInterval: interval,
-                          ),
+                          gridData: FlGridData(show: true, horizontalInterval: interval),
                           borderData: FlBorderData(show: false),
                           titlesData: FlTitlesData(
                             leftTitles: AxisTitles(
@@ -301,10 +296,7 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                                 reservedSize: 50,
                                 getTitlesWidget: (value, meta) {
                                   if (value % interval != 0) return const SizedBox();
-                                  return Text(
-                                    formatRupiah.format(value.toInt()),
-                                    style: const TextStyle(fontSize: 10),
-                                  );
+                                  return Text(formatRupiah.format(value.toInt()), style: const TextStyle(fontSize: 10));
                                 },
                               ),
                             ),
@@ -312,8 +304,8 @@ class _GrafikTBSPageState extends State<GrafikTBSPage> {
                               sideTitles: SideTitles(
                                 showTitles: true,
                                 getTitlesWidget: (value, meta) {
-                                  if (value.toInt() < bulanList.length) {
-                                    return Text(bulanList[value.toInt()], style: const TextStyle(fontSize: 10));
+                                  if (value.toInt() >= 0 && value.toInt() < bulanSingkat.length) {
+                                    return Text(bulanSingkat[value.toInt()], style: const TextStyle(fontSize: 10));
                                   }
                                   return const Text('');
                                 },

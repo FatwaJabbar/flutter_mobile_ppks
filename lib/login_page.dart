@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -40,12 +39,11 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => loading = true);
     try {
       final googleSignIn = GoogleSignIn(scopes: ['email']);
-      // PAKSA user pilih akun
       final googleUser = await googleSignIn.signInSilently();
       if (googleUser != null) {
         await googleSignIn.disconnect();
       }
-      final selectedUser = await googleSignIn.signIn(); // Paksa pilih akun
+      final selectedUser = await googleSignIn.signIn();
       if (selectedUser == null) {
         snack('Login Google dibatalkan');
         setState(() => loading = false);
@@ -63,7 +61,6 @@ class _LoginPageState extends State<LoginPage> {
       final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
       final doc = await ref.get();
 
-      // Auto-register jika user baru
       if (!doc.exists) {
         await ref.set({
           'nama': user.displayName ?? 'User',
@@ -82,6 +79,7 @@ class _LoginPageState extends State<LoginPage> {
 
       UserSession.userId = ref.id;
       UserSession.nama = data['nama'] ?? user.displayName ?? 'User';
+      UserSession.role = 'user'; // Google Login otomatis user
       UserSession.bio = data['bio'] ?? '';
       UserSession.telp = data['telp'] ?? '';
       UserSession.fotoBase64 = data['fotoBase64'] ?? '';
@@ -97,19 +95,40 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ================= USERNAME LOGIN =================
+  // ================= LOGIN MANUAL (CEK USERNAME/EMAIL) =================
   Future<void> cekUsername() async {
-    final username = usernameController.text.trim();
-    if (username.isEmpty) {
+    final input = usernameController.text.trim();
+    if (input.isEmpty) {
       snack('Isi username');
       return;
     }
 
     setState(() => loading = true);
     try {
+      // 1. Cek Admin Spesifik
+      if (input == "appdorms@gmail.com") {
+        final qAdmin = await FirebaseFirestore.instance
+            .collection('admin')
+            .where('email', isEqualTo: input)
+            .limit(1)
+            .get();
+
+        if (qAdmin.docs.isNotEmpty) {
+          final doc = qAdmin.docs.first;
+          userId = doc.id;
+          savedPassword = doc.data()['password'].toString();
+          setState(() {
+            showPassword = true;
+            loading = false;
+          });
+          return;
+        }
+      }
+
+      // 2. Cek User Biasa
       final q = await FirebaseFirestore.instance
           .collection('users')
-          .where('nama', isEqualTo: username)
+          .where('nama', isEqualTo: input)
           .limit(1)
           .get();
 
@@ -129,10 +148,10 @@ class _LoginPageState extends State<LoginPage> {
         loading = false;
       });
 
-      // Jika user belum pakai password, langsung login
       if (!showPassword) {
         UserSession.userId = doc.id;
         UserSession.nama = data['nama'] ?? 'User';
+        UserSession.role = 'user'; 
         UserSession.bio = data['bio'] ?? '';
         UserSession.telp = data['telp'] ?? '';
         UserSession.fotoBase64 = data['fotoBase64'] ?? '';
@@ -147,26 +166,30 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
+  // ================= CEK PASSWORD & SET ROLE =================
   Future<void> cekPassword() async {
     final password = passwordController.text.trim();
     if (password.isEmpty) {
       snack('Password kosong');
       return;
     }
-    if (userId == null) {
-      snack('User belum valid');
-      return;
-    }
 
     setState(() => loading = true);
     try {
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      // Cek koleksi admin dulu
+      var doc = await FirebaseFirestore.instance.collection('admin').doc(userId).get();
+      bool isAdminCol = doc.exists;
+
+      if (!isAdminCol) {
+        doc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+      }
+
       if (!doc.exists) {
-        snack('User tidak ditemukan');
+        snack('Data tidak ditemukan');
         setState(() => loading = false);
         return;
       }
+
       final data = doc.data();
       if ((data?['password'] ?? '').toString() != password) {
         snack('Password salah');
@@ -174,8 +197,10 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      // Finalisasi Session
       UserSession.userId = doc.id;
-      UserSession.nama = data?['nama'] ?? 'User';
+      UserSession.nama = isAdminCol ? "Admin" : (data?['nama'] ?? 'User');
+      UserSession.role = isAdminCol ? 'admin' : 'user'; // Fokus role di sini
       UserSession.bio = data?['bio'] ?? '';
       UserSession.telp = data?['telp'] ?? '';
       UserSession.fotoBase64 = data?['fotoBase64'] ?? '';
@@ -191,7 +216,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ================= UI =================
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -233,8 +257,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         const SizedBox(height: 40),
-
-                        // GOOGLE LOGIN
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -242,96 +264,47 @@ class _LoginPageState extends State<LoginPage> {
                             onPressed: loading ? null : signInWithGoogle,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
-                              elevation: 1,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Image.asset(
-                                  'assets/images/google.jpg',
-                                  height: 20,
-                                ),
+                                Image.asset('assets/images/google.jpg', height: 20),
                                 const SizedBox(width: 12),
-                                const Text(
-                                  "Masuk dengan Google",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black,
-                                  ),
-                                ),
+                                const Text("Masuk dengan Google", style: TextStyle(color: Colors.black)),
                               ],
                             ),
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // LOGIN NO HP (placeholder)
                         SizedBox(
                           width: double.infinity,
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: () {
-                              snack("Fungsi login nomor HP belum dibuat");
-                            },
+                            onPressed: () => snack("Fungsi nomor HP belum aktif"),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
-                              elevation: 1,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: const [
                                 Icon(Icons.phone, color: Colors.black),
                                 SizedBox(width: 12),
-                                Text(
-                                  "Masuk dengan Nomor HP",
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: Colors.black,
-                                  ),
-                                ),
+                                Text("Masuk dengan Nomor HP", style: TextStyle(color: Colors.black)),
                               ],
                             ),
                           ),
                         ),
                         const SizedBox(height: 24),
-
-                        // DIVIDER
-                        Row(
-                          children: const [
+                        const Row(
+                          children: [
                             Expanded(child: Divider(thickness: 1)),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                "atau",
-                                style: TextStyle(
-                                  color: Colors.black54,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ),
+                            Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text("atau")),
                             Expanded(child: Divider(thickness: 1)),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          "Masuk menggunakan akun yang sudah terdaftar",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.black54,
-                          ),
-                        ),
                         const SizedBox(height: 24),
-
-                        // USERNAME
                         TextField(
                           controller: usernameController,
                           decoration: InputDecoration(
@@ -339,12 +312,9 @@ class _LoginPageState extends State<LoginPage> {
                             prefixIcon: const Icon(Icons.person),
                             filled: true,
                             fillColor: Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
-
                         if (showPassword) ...[
                           const SizedBox(height: 16),
                           TextField(
@@ -355,42 +325,26 @@ class _LoginPageState extends State<LoginPage> {
                               prefixIcon: const Icon(Icons.lock),
                               filled: true,
                               fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                           ),
                         ],
-
                         const SizedBox(height: 20),
-
-                        // BUTTON MASUK
                         SizedBox(
                           width: double.infinity,
                           height: 48,
                           child: ElevatedButton(
-                            onPressed: loading
-                                ? null
-                                : showPassword
-                                    ? cekPassword
-                                    : cekUsername,
+                            onPressed: loading ? null : (showPassword ? cekPassword : cekUsername),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.orange,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Text(
                               showPassword ? "Masuk" : "Lanjutkan",
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
-
                         const SizedBox(height: 30),
                       ],
                     ),

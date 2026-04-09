@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Tambahkan ini
 import 'firebase_options.dart';
 import 'login_page.dart';
+import 'dashboard.dart'; // Import Dashboard
+import 'user_session.dart'; // Import Session
 
-// RouteObserver tetap final
 final RouteObserver<ModalRoute> routeObserver = RouteObserver<ModalRoute>();
 
 Future<void> main() async {
@@ -17,9 +19,8 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // 🔥 KUNCI SEBENARNYA ADA DI SINI
-  // LOGOUT FIREBASE SEBELUM APP JALAN
-  await FirebaseAuth.instance.signOut();
+  // ❌ HAPUS ATAU KOMENTAR BARIS INI:
+  // await FirebaseAuth.instance.signOut(); 
 
   if (!kIsWeb) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -27,8 +28,6 @@ Future<void> main() async {
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
-        systemNavigationBarColor: Colors.transparent,
-        systemNavigationBarIconBrightness: Brightness.dark,
       ),
     );
   }
@@ -60,15 +59,54 @@ class _TampilanAwalState extends State<TampilanAwal> {
   @override
   void initState() {
     super.initState();
-    Timer(
-      const Duration(seconds: 3),
-      () {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()),
-        );
-      },
-    );
+    _pindahHalaman();
+  }
+
+  // Logika pengecekan login di Splash Screen
+  Future<void> _pindahHalaman() async {
+    await Future.delayed(const Duration(seconds: 3));
+
+    // 1. Cek apakah ada user yang masih tersimpan sesinya di Firebase
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        // 2. Jika ada, ambil data dari Firestore untuk mengisi UserSession
+        final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        
+        if (doc.exists) {
+          final data = doc.data()!;
+          UserSession.userId = doc.id;
+          UserSession.nama = data['nama'] ?? user.displayName ?? 'User';
+          UserSession.role = 'user';
+          UserSession.bio = data['bio'] ?? '';
+          UserSession.telp = data['telp'] ?? '';
+          UserSession.fotoBase64 = data['fotoBase64'] ?? '';
+          UserSession.fotoGoogleUrl = user.photoURL ?? data['fotoGoogleUrl'] ?? '';
+          UserSession.hasPassword = data['hasPassword'] ?? false;
+          UserSession.isGoogleUser = true;
+
+          // Langsung ke Dashboard
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const DashboardPage()),
+            );
+          }
+          return;
+        }
+      } catch (e) {
+        debugPrint("Gagal mengambil data sesi: $e");
+      }
+    }
+
+    // 3. Jika tidak ada user atau error, baru ke LoginPage
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+      );
+    }
   }
 
   @override
@@ -79,10 +117,7 @@ class _TampilanAwalState extends State<TampilanAwal> {
         height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [
-              Color(0xFFFFD54F),
-              Color(0xFFFFB300),
-            ],
+            colors: [Color(0xFFFFD54F), Color(0xFFFFB300)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
@@ -90,10 +125,7 @@ class _TampilanAwalState extends State<TampilanAwal> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/images/logo.png',
-              width: 250,
-            ),
+            Image.asset('assets/images/logo.png', width: 250),
             const SizedBox(height: 8),
             const Text(
               'KAWAL\nKEBUN',

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'user_session.dart';
 
 class GrafikCPOPage extends StatefulWidget {
   const GrafikCPOPage({super.key});
@@ -14,17 +15,17 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
   int? selectedYear;
   final formatRupiah = NumberFormat("#,##0", "id_ID");
 
+  // Fungsi untuk mendapatkan nama bulan lengkap
   String _getMonthLabel(int bulan) {
     const bulanList = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
     return bulanList[bulan - 1];
   }
 
-  /// Fungsi untuk menampilkan Dialog Tambah Data
   void _showAddDataDialog() {
-    final TextEditingController yearController = TextEditingController();
+    final TextEditingController yearController = TextEditingController(text: "2026");
     final TextEditingController priceController = TextEditingController();
     int selectedMonth = 1;
 
@@ -38,7 +39,7 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
             children: [
               TextField(
                 controller: yearController,
-                decoration: const InputDecoration(labelText: "Tahun (Contoh: 2024)"),
+                decoration: const InputDecoration(labelText: "Tahun"),
                 keyboardType: TextInputType.number,
               ),
               const SizedBox(height: 10),
@@ -46,7 +47,10 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
                 value: selectedMonth,
                 decoration: const InputDecoration(labelText: "Bulan"),
                 items: List.generate(12, (index) => index + 1).map((m) {
-                  return DropdownMenuItem(value: m, child: Text(_getMonthLabel(m)));
+                  return DropdownMenuItem(
+                    value: m, 
+                    child: Text(_getMonthLabel(m)), // Menggunakan nama bulan lengkap
+                  );
                 }).toList(),
                 onChanged: (val) => selectedMonth = val!,
               ),
@@ -86,13 +90,13 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
         title: const Text('Grafik CPO International'),
         backgroundColor: Colors.green,
         centerTitle: true,
-        // MENU DI POJOK KANAN ATAS
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_chart),
-            onPressed: _showAddDataDialog,
-            tooltip: "Tambah Data",
-          ),
+          if (UserSession.role == 'admin') 
+            IconButton(
+              icon: const Icon(Icons.add_chart),
+              onPressed: _showAddDataDialog,
+              tooltip: "Tambah Data",
+            ),
         ],
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -144,7 +148,7 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
           double minHarga = hargaList.reduce((a, b) => a < b ? a : b);
           double maxHarga = hargaList.reduce((a, b) => a > b ? a : b);
           double margin = (maxHarga - minHarga) * 0.1;
-          if (margin == 0) margin = 100; // Jika semua harga sama
+          if (margin == 0) margin = 100;
 
           double adjustedMinY = (minHarga - margin).clamp(0, minHarga);
           double adjustedMaxY = maxHarga + margin;
@@ -205,9 +209,16 @@ class _GrafikCPOPageState extends State<GrafikCPOPage> {
                             getTitlesWidget: (value, meta) {
                               int bulan = value.toInt() + 1;
                               if (bulan >= 1 && bulan <= 12) {
-                                return Text(
-                                  _getMonthLabel(bulan),
-                                  style: const TextStyle(fontSize: 10),
+                                // Mengambil 3 huruf depan saja untuk tampilan sumbu X grafik 
+                                // agar tidak terlalu sesak, tapi di dialog tetap full.
+                                // Jika ingin di grafik juga full, hapus .substring(0, 3)
+                                String label = _getMonthLabel(bulan);
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8.0),
+                                  child: Text(
+                                    label.length > 3 ? label.substring(0, 3) : label,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
                                 );
                               }
                               return const Text('');
