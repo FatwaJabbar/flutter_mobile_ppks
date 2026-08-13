@@ -47,7 +47,7 @@ const DAFTAR_PROVINSI = [
 /*  Util: panggil Gemini API, minta JSON murni sebagai balasan         */
 /* ------------------------------------------------------------------ */
 async function geminiExtractJSON(apiKey, prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
 
   const res = await fetch(url, {
     method: "POST",

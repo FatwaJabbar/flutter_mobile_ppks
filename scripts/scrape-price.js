@@ -57,7 +57,10 @@ async function fetchArticleText(url) {
 }
 
 async function extractWithGemini(genAI, articleText, type) {
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+  // Pakai alias "-latest" bukan versi tetap (mis. "gemini-2.0-flash"), supaya
+  // otomatis ikut versi Flash terbaru dan tidak rusak saat Google pensiunkan
+  // model lama (ini sudah terjadi 2x sepanjang 2026).
+  const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' });
 
   const schemaHint =
     type === 'tbs'
