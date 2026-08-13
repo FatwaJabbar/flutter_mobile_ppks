@@ -1,17 +1,19 @@
 name: Update Harga Sawit
 
 on:
-  # Bisa dijalankan manual kapan saja dari tab Actions di GitHub,
-  # dengan opsi menimpa daftar URL lewat input (tanpa perlu edit sources.json).
+  # Bisa dijalankan manual kapan saja dari tab Actions di GitHub.
+  # Secara default (input dikosongkan) script otomatis MENCARI SENDIRI
+  # artikel terbaru dari halaman kategori infosawit.com -- tidak perlu
+  # isi apa pun untuk pemakaian normal.
   workflow_dispatch:
     inputs:
       urls_json:
-        description: 'Opsional: JSON array url untuk override sources.json, contoh: [{"type":"tbs","url":"https://..."}]'
+        description: 'HANYA untuk testing satu artikel spesifik. Kosongkan untuk pemakaian normal (auto-discovery). Contoh isi: [{"type":"tbs","url":"https://..."}]'
         required: false
         default: ''
 
-  # Otomatis jalan tanggal 1 tiap bulan jam 03:00 UTC (10:00 WIB),
-  # membaca daftar link dari scripts/sources.json.
+  # Otomatis jalan tanggal 1 tiap bulan jam 03:00 UTC (10:00 WIB).
+  # Script akan mencari sendiri artikel CPO & TBS terbaru saat itu.
   schedule:
     - cron: '0 3 1 * *'
 
