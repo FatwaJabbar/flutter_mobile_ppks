@@ -59,21 +59,23 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBHmA82GiU5zOSPyMHVSTXaITgMa4x1nNo',
-    appId: '1:1050782929738:ios:a68ecb8e4ba94a36fba7b3',
-    messagingSenderId: '1050782929738',
-    projectId: 'fluttermobile-77956',
-    storageBucket: 'fluttermobile-77956.firebasestorage.app',
-    iosBundleId: 'com.example.flutterMobilePpks',
+    apiKey: 'AIzaSyBas1xvJJmPBOm0EUOHzhpD_rMdQmGpGqA',
+    appId: '1:166549220113:ios:bb0e5d9fcdb5ef7c7bbab0',
+    messagingSenderId: '166549220113',
+    projectId: 'kawal-kebun',
+    storageBucket: 'kawal-kebun.firebasestorage.app',
+    iosBundleId: 'com.ppks.kawalkebun',
+    iosClientId: '166549220113-sukag87bqc9cmanppbjusqnttpk5l8tb.apps.googleusercontent.com',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBHmA82GiU5zOSPyMHVSTXaITgMa4x1nNo',
-    appId: '1:1050782929738:ios:a68ecb8e4ba94a36fba7b3',
-    messagingSenderId: '1050782929738',
-    projectId: 'fluttermobile-77956',
-    storageBucket: 'fluttermobile-77956.firebasestorage.app',
-    iosBundleId: 'com.example.flutterMobilePpks',
+    apiKey: 'AIzaSyBas1xvJJmPBOm0EUOHzhpD_rMdQmGpGqA',
+    appId: '1:166549220113:ios:bb0e5d9fcdb5ef7c7bbab0',
+    messagingSenderId: '166549220113',
+    projectId: 'kawal-kebun',
+    storageBucket: 'kawal-kebun.firebasestorage.app',
+    iosBundleId: 'com.ppks.kawalkebun',
+    iosClientId: '166549220113-sukag87bqc9cmanppbjusqnttpk5l8tb.apps.googleusercontent.com',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

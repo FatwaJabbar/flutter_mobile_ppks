@@ -4,10 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CLIENT_ID</key>
-	<string>http://1000735152762-gsro7gikp6itbmfj23uvvqepr3omjnmo.apps.googleusercontent.com</string>
 	<key>CFBundleDisplayName</key>
-	<string>Flutter Mobile Ppks</string>
+	<string>Kawal Kebun</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -47,5 +45,29 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google Sign-In URL Scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.166549220113-sukag87bqc9cmanppbjusqnttpk5l8tb</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Photo Library Permission (untuk image_picker & file_picker) -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Aplikasi memerlukan akses galeri foto untuk memilih gambar dokumentasi dan foto profil.</string>
+	<!-- Camera Permission (untuk image_picker) -->
+	<key>NSCameraUsageDescription</key>
+	<string>Aplikasi memerlukan akses kamera untuk mengambil foto dokumentasi.</string>
+	<!-- Network / App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

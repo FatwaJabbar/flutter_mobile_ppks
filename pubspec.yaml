@@ -1,7 +1,7 @@
 name: flutter_mobile_ppks
 description: "A new Flutter project."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.6+10
 
 environment:
   sdk: ^3.5.1
@@ -39,6 +39,24 @@ dependencies:
   intl: ^0.18.1
   fl_chart: ^0.66.0
   cupertino_icons: ^1.0.8
+
+  # ===== ABSENSI (KAMERA & VERIFIKASI WAJAH) =====
+  camera: ^0.10.6
+  google_mlkit_face_detection: ^0.10.0
+  image: ^4.2.0
+
+  # ===== ABSENSI (TRACKING LOKASI LATAR BELAKANG) =====
+  flutter_foreground_task: ^8.17.0
+  permission_handler: ^11.3.1
+
+  # ===== ABSENSI (LINK UNDANGAN / DEEP LINK) =====
+  app_links: ^7.0.0
+
+  # ===== ABSENSI (LOKASI GPS SAAT ABSEN) =====
+  geolocator: 12.0.0
+  url_launcher: ^6.3.1
+  flutter_map: ^8.3.1
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:

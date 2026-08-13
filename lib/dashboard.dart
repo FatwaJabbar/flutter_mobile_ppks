@@ -7,14 +7,15 @@ import 'dokumentasi.dart';
 import 'grafik_cpo.dart';
 import 'grafik_tbs.dart';
 import 'laporan.dart';
-import 'sewa_agronomis.dart';
+// import 'sewa_agronomis.dart';
 import 'catatrawat.dart';
 import 'daftar_kebun.dart';
-import 'pengawal.dart';
+// import 'pengawal.dart';
 import 'riwayat.dart';
 import 'user_session.dart';
 import 'database_helper.dart'; // buat ambil total pengeluaran/pemasukan
 import 'package:intl/intl.dart';
+import 'absensi_pilih_role.dart';
 
 class DashboardPage extends StatefulWidget {
   final int initialIndex;
@@ -49,7 +50,10 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         backgroundColor: Colors.white,
         selectedItemColor: Colors.green,
@@ -323,42 +327,99 @@ class _DashboardContentState extends State<DashboardContent> {
                       ),
                       const SizedBox(height: 20),
 
-                      _sectionTitle("Tingkatkan Produktivitas"),
-                      // Produktivitas Grid
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFFFE59D), Color(0xFFFFB347)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
+                      // ================= WIDGET ABSENSI (BARU) =================
+                      _sectionTitle("Absensi"),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AbsensiPilihRolePage()),
+                          );
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFFFE59D), Color(0xFFFFB347)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: Colors.black26),
                           ),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.black26),
-                        ),
-                        child: GridView.count(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: [
-                            _menuItem(Icons.local_florist, "Pengawal Sawit", onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const PengawalPage()),
-                              );
-                            }),
-                            _menuItem(Icons.engineering, "Sewa Agronomis", onTap: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const SewaAgronomisPage()),
-                              );
-                            }),
-                          ],
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: const Icon(Icons.fingerprint, color: Colors.green, size: 26),
+                              ),
+                              const SizedBox(width: 12),
+                              const Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Absensi Menu",
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                    SizedBox(height: 2),
+                                    Text(
+                                      "Kelola & catat kehadiran dengan verifikasi wajah",
+                                      style: TextStyle(fontSize: 11),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, size: 14),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
+                      // ================= AKHIR WIDGET ABSENSI =================
+
+                      // _sectionTitle("Tingkatkan Produktivitas"),
+                      // // Produktivitas Grid
+                      // Container(
+                      //   padding: const EdgeInsets.all(10),
+                      //   decoration: BoxDecoration(
+                      //     gradient: const LinearGradient(
+                      //       colors: [Color(0xFFFFE59D), Color(0xFFFFB347)],
+                      //       begin: Alignment.topLeft,
+                      //       end: Alignment.bottomRight,
+                      //     ),
+                      //     borderRadius: BorderRadius.circular(8),
+                      //     border: Border.all(color: Colors.black26),
+                      //   ),
+                      //   child: GridView.count(
+                      //     crossAxisCount: 2,
+                      //     crossAxisSpacing: 10,
+                      //     mainAxisSpacing: 10,
+                      //     shrinkWrap: true,
+                      //     physics: const NeverScrollableScrollPhysics(),
+                      //     children: [
+                      //       _menuItem(Icons.local_florist, "Pengawal Sawit", onTap: () {
+                      //         Navigator.push(
+                      //           context,
+                      //           MaterialPageRoute(builder: (_) => const PengawalPage()),
+                      //         );
+                      //       }),
+                      //       _menuItem(Icons.engineering, "Sewa Agronomis", onTap: () {
+                      //         Navigator.push(
+                      //           context,
+                      //           MaterialPageRoute(builder: (_) => const SewaAgronomisPage()),
+                      //         );
+                      //       }),
+                      //     ],
+                      //   ),
+                      // ),
+                      // const SizedBox(height: 20),
 
                       // Laporan Kebun dengan Filter
                       Row(

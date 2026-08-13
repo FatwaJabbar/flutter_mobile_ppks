@@ -9,18 +9,41 @@ import 'firebase_options.dart';
 import 'login_page.dart';
 import 'dashboard.dart'; // Import Dashboard
 import 'user_session.dart'; // Import Session
+import 'deep_link_service.dart'; // Tambahan: penangan link undangan absensi
+import 'absensi_pekerja.dart';
+import 'absensi_background_service.dart'; // Tambahan: lanjutkan tracking lokasi kalau masih aktif
 
 final RouteObserver<ModalRoute> routeObserver = RouteObserver<ModalRoute>();
+
+// GlobalKey navigator supaya DeepLinkService bisa navigasi dari mana saja
+// tanpa butuh BuildContext dari widget tertentu.
+final navigatorKey = GlobalKey<NavigatorState>();
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase with error handling for duplicate app
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    // Firebase app already exists, ignore error
+    if (e.toString().contains('duplicate-app')) {
+      print('Firebase app already initialized');
+    } else {
+      rethrow;
+    }
+  }
 
   // ❌ HAPUS ATAU KOMENTAR BARIS INI:
-  // await FirebaseAuth.instance.signOut(); 
+  // await FirebaseAuth.instance.signOut();
+
+  // Kalau proses Dart sebelumnya mati total (mis. OS bersih-bersih memori)
+  // sementara pekerja masih berstatus "sudah Hadir belum Checkout", service
+  // tracking lokasi latar belakang dilanjutkan lagi di sini.
+  await AbsensiBackgroundService.lanjutkanJikaMasihAktif();
 
   if (!kIsWeb) {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -35,12 +58,32 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Mulai dengarkan link undangan absensi (ppks://gabung?kode=...
+    // atau https://.../gabung?kode=...)
+    DeepLinkService.init(navigatorKey);
+  }
+
+  @override
+  void dispose() {
+    DeepLinkService.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey, // <-- WAJIB supaya DeepLinkService bisa jalan
       debugShowCheckedModeBanner: false,
       navigatorObservers: [routeObserver],
       home: const TampilanAwal(),
@@ -73,7 +116,7 @@ class _TampilanAwalState extends State<TampilanAwal> {
       try {
         // 2. Jika ada, ambil data dari Firestore untuk mengisi UserSession
         final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-        
+
         if (doc.exists) {
           final data = doc.data()!;
           UserSession.userId = doc.id;
@@ -86,8 +129,29 @@ class _TampilanAwalState extends State<TampilanAwal> {
           UserSession.hasPassword = data['hasPassword'] ?? false;
           UserSession.isGoogleUser = true;
 
-          // Langsung ke Dashboard
           if (mounted) {
+            // Kalau splash screen ini dibuka karena user tap link undangan
+            // absensi (dan ternyata sudah login), lanjut ke room absensi --
+            // TAPI Dashboard tetap dipasang sebagai dasar stack (bukan
+            // pushReplacement langsung ke AbsensiPekerjaPage), supaya ada
+            // jalan navigasi "back" ke Dashboard setelah proses absen
+            // selesai. Tanpa ini, AbsensiPekerjaPage jadi route paling
+            // dasar (canPop() == false, tidak ada tombol back di AppBar)
+            // dan pengguna tidak akan pernah bisa kembali ke Dashboard.
+            if (DeepLinkService.pendingKode != null) {
+              final kode = DeepLinkService.pendingKode!;
+              DeepLinkService.pendingKode = null;
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const DashboardPage()),
+              );
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => AbsensiPekerjaPage(kodeAwal: kode)),
+              );
+              return;
+            }
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (_) => const DashboardPage()),

@@ -12,6 +12,7 @@ class _Riwayat2PageState extends State<Riwayat2Page> {
 
   final List<String> jenisList = [
     "Semua Jenis",
+    "Absensi",
     "Pencapaian Program",
     "Mesin Penghasil Sawit Poin",
     "Pembelian",

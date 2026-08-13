@@ -1,8 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'database_helper.dart';
 import 'riwayat_detail.dart';
 import 'riwayat2.dart';
+import 'absensi_service.dart';
+import 'absensi_models.dart';
+import 'absensi_grafik_page.dart';
+import 'user_session.dart';
 
 class RiwayatPage extends StatefulWidget {
   const RiwayatPage({super.key});
@@ -20,12 +27,25 @@ class _RiwayatPageState extends State<RiwayatPage> {
 
   List<Map<String, dynamic>> _dataPanen = [];
 
+  // ===== TAMBAHAN: RIWAYAT ABSENSI =====
+  List<RiwayatAbsensi> _dataAbsensi = [];
+  bool _loadingAbsensi = false;
+  bool _sayaPemilikRoom = false;
+  String? _errorAbsensi;
+
+  // Disimpan supaya bisa dipakai membuka AbsensiGrafikPage (butuh roomId,
+  // bukan cuma data riwayatnya saja).
+  String? _roomIdSaya;
+
   final NumberFormat _formatter = NumberFormat.decimalPattern('id');
+
+  String get _uid => UserSession.userId ?? FirebaseAuth.instance.currentUser?.uid ?? '';
 
   @override
   void initState() {
     super.initState();
     _loadPanen();
+    _loadAbsensi();
   }
 
   @override
@@ -37,6 +57,54 @@ class _RiwayatPageState extends State<RiwayatPage> {
   Future<void> _loadPanen() async {
     final data = await DBHelper.getAll();
     setState(() => _dataPanen = data);
+  }
+
+  // ===== TAMBAHAN: ambil riwayat absensi dari room saya (pemilik/pekerja) =====
+  Future<void> _loadAbsensi() async {
+    if (_uid.isEmpty) return;
+    setState(() {
+      _loadingAbsensi = true;
+      _errorAbsensi = null;
+    });
+
+    try {
+      final info = await AbsensiService.cariRoomSaya(_uid);
+      if (info == null) {
+        setState(() {
+          _dataAbsensi = [];
+          _roomIdSaya = null;
+          _loadingAbsensi = false;
+        });
+        return;
+      }
+
+      _sayaPemilikRoom = info.sayaPemilik;
+      _roomIdSaya = info.roomId;
+
+      final hasil = await AbsensiService.getRiwayatRoom(
+        roomId: info.roomId,
+        userId: info.sayaPemilik ? null : _uid, // pemilik lihat semua, pekerja lihat punya sendiri
+        start: _startDate,
+        end: _endDate,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _dataAbsensi = hasil;
+        _loadingAbsensi = false;
+      });
+    } catch (e) {
+      // Penting: tanpa try/catch ini, kalau query Firestore gagal
+      // (mis. index belum dibuat / FAILED_PRECONDITION), exception
+      // tidak tertangani dan _loadingAbsensi tidak pernah di-reset,
+      // sehingga UI terlihat "nyangkut" di kondisi loading terus.
+      if (!mounted) return;
+      setState(() {
+        _loadingAbsensi = false;
+        _errorAbsensi = "Gagal memuat riwayat absensi. Coba lagi nanti.";
+      });
+      debugPrint('RiwayatPage._loadAbsensi error: $e');
+    }
   }
 
   // 🔹 Perbaikan utama _toDouble()
@@ -117,7 +185,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
   @override
   Widget build(BuildContext context) {
     _applyTanggalFilter();
-    final filteredData = _getFilteredData();
+
+    final bool tampilAbsensi = _selectedJenis == 'Absensi';
+    final filteredData = tampilAbsensi ? <Map<String, dynamic>>[] : _getFilteredData();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFFE59A),
@@ -134,7 +204,10 @@ class _RiwayatPageState extends State<RiwayatPage> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadPanen,
+        onRefresh: () async {
+          await _loadPanen();
+          await _loadAbsensi();
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
@@ -143,15 +216,17 @@ class _RiwayatPageState extends State<RiwayatPage> {
             children: [
               _filterCard(),
               const SizedBox(height: 24),
-              const Text(
-                "Daftar Riwayat",
-                style: TextStyle(
+              Text(
+                tampilAbsensi ? "Riwayat Absensi" : "Daftar Riwayat",
+                style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
               ),
               const SizedBox(height: 12),
-              if (filteredData.isEmpty)
+              if (tampilAbsensi)
+                _bagianAbsensi()
+              else if (filteredData.isEmpty)
                 _emptyState()
               else
                 Column(
@@ -162,6 +237,371 @@ class _RiwayatPageState extends State<RiwayatPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ===== TAMBAHAN: bagian tampilan riwayat absensi =====
+  Widget _bagianAbsensi() {
+    if (_loadingAbsensi) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (_errorAbsensi != null) {
+      return Center(
+        child: SizedBox(
+          width: double.infinity,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                const SizedBox(height: 12),
+                Text(
+                  _errorAbsensi!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.black54),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _loadAbsensi,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text("Coba Lagi"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (_dataAbsensi.isEmpty) {
+      return _emptyState();
+    }
+
+    return Column(
+      children: _dataAbsensi.map(_buildItemAbsensi).toList(),
+    );
+  }
+
+  Widget _buildItemAbsensi(RiwayatAbsensi r) {
+    final (warna, ikon, label) = infoStatusAbsensi(r.status);
+    final punyaJam = r.status == StatusAbsensi.hadir || r.status == StatusAbsensi.telat;
+    // True kalau hari itu sudah checkout DAN ada ringkasan aktivitas
+    // (menit di dalam/luar area) yang bisa ditampilkan.
+    final punyaAktivitas = r.jamCheckout != null && r.ringkasan != null;
+
+    DateTime? tgl;
+    try {
+      tgl = DateFormat('yyyy-MM-dd').parse(r.tanggal);
+    } catch (_) {}
+    final tanggalStr = tgl != null ? DateFormat('d MMM yyyy').format(tgl) : r.tanggal;
+
+    return GestureDetector(
+      onTap: () => _bukaDetailAbsensi(r),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: warna.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(ikon, color: warna),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        // Pemilik lihat nama pekerjanya, pekerja cukup lihat statusnya
+                        _sayaPemilikRoom ? r.nama : label,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        punyaJam
+                            ? "$tanggalStr · ${r.jam.substring(0, 5)}"
+                            : tanggalStr,
+                        style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: warna.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 11, color: warna, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            // Ringkasan aktivitas singkat langsung di kartu list, supaya
+            // pekerja/pemilik bisa lihat sekilas tanpa perlu buka detail.
+            if (punyaAktivitas) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF4F6F8),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    _miniStat(Icons.check_circle_outline, Colors.green,
+                        "${r.ringkasan!.totalMenitDiDalam}m", "dalam"),
+                    const SizedBox(width: 14),
+                    _miniStat(Icons.error_outline, Colors.redAccent,
+                        "${r.ringkasan!.totalMenitDiLuar}m", "luar"),
+                    const SizedBox(width: 14),
+                    _miniStat(Icons.logout, Colors.orange.shade700,
+                        "${r.ringkasan!.jumlahKeluarArea}x", "keluar"),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniStat(IconData ikon, Color warna, String nilai, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(ikon, size: 13, color: warna),
+        const SizedBox(width: 4),
+        Text(
+          "$nilai $label",
+          style: const TextStyle(fontSize: 11, color: Colors.black54, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
+  void _bukaDetailAbsensi(RiwayatAbsensi r) {
+    DateTime? tgl;
+    try {
+      tgl = DateFormat('yyyy-MM-dd').parse(r.tanggal);
+    } catch (_) {}
+    final tanggalStr = tgl != null ? DateFormat('d MMM yyyy').format(tgl) : r.tanggal;
+    final punyaAktivitas = r.jamCheckout != null && r.ringkasan != null;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(r.nama, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(tanggalStr, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                const SizedBox(height: 16),
+                if (r.fotoBase64 != null && r.fotoBase64!.isNotEmpty)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.memory(
+                      base64Decode(r.fotoBase64!),
+                      height: 220,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                if (r.status == StatusAbsensi.izin || r.status == StatusAbsensi.sakit)
+                  Text(
+                    "${r.status == StatusAbsensi.sakit ? 'Alasan sakit' : 'Alasan izin'}: ${r.keterangan ?? '-'}",
+                  )
+                else
+                  Text(
+                    "Jam absen: ${r.jam.substring(0, 5)} "
+                    "(${r.status == StatusAbsensi.telat ? 'Telat' : 'Hadir'})",
+                  ),
+                if (r.lat != null && r.lng != null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final url = Uri.parse('https://www.google.com/maps?q=${r.lat},${r.lng}');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      icon: const Icon(Icons.location_on, color: Colors.green),
+                      label: const Text("Lihat Lokasi Absen", style: TextStyle(color: Colors.green)),
+                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.green)),
+                    ),
+                  ),
+                ],
+
+                // ===== TAMBAHAN: ringkasan + tombol lihat grafik aktivitas =====
+                if (punyaAktivitas) ...[
+                  const SizedBox(height: 16),
+                  const Divider(height: 1),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.insights, size: 16, color: Color(0xFF2E7D32)),
+                      const SizedBox(width: 6),
+                      const Text(
+                        "Aktivitas Hari Itu",
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                      ),
+                      const Spacer(),
+                      Text(
+                        "Checkout ${r.jamCheckout!.substring(0, 5)}"
+                        "${r.checkoutOtomatis ? ' (otomatis)' : ''}",
+                        style: const TextStyle(fontSize: 11, color: Colors.black45),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _kartuRingkasanMini(
+                          ikon: Icons.check_circle_outline,
+                          warna: const Color(0xFF2E7D32),
+                          nilai: "${r.ringkasan!.totalMenitDiDalam}",
+                          satuan: "mnt",
+                          label: "Di Dalam",
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _kartuRingkasanMini(
+                          ikon: Icons.error_outline,
+                          warna: const Color(0xFFE53935),
+                          nilai: "${r.ringkasan!.totalMenitDiLuar}",
+                          satuan: "mnt",
+                          label: "Di Luar",
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _kartuRingkasanMini(
+                          ikon: Icons.logout,
+                          warna: Colors.orange.shade700,
+                          nilai: "${r.ringkasan!.jumlahKeluarArea}",
+                          satuan: "x",
+                          label: "Keluar",
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2E7D32),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: (_roomIdSaya == null)
+                          ? null
+                          : () {
+                              Navigator.pop(ctx); // tutup bottom sheet dulu
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AbsensiGrafikPage(
+                                    roomId: _roomIdSaya!,
+                                    userId: r.userId,
+                                    nama: r.nama,
+                                    tanggal: r.tanggal,
+                                  ),
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.bar_chart, color: Colors.white),
+                      label: const Text(
+                        "Lihat Grafik Aktivitas Lengkap",
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _kartuRingkasanMini({
+    required IconData ikon,
+    required Color warna,
+    required String nilai,
+    required String satuan,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+      decoration: BoxDecoration(
+        color: warna.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Icon(ikon, size: 16, color: warna),
+          const SizedBox(height: 6),
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: nilai,
+                  style: TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.bold, color: warna, height: 1),
+                ),
+                TextSpan(
+                  text: " $satuan",
+                  style: const TextStyle(fontSize: 10, color: Colors.black54),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 10, color: Colors.black54)),
+        ],
       ),
     );
   }
@@ -344,8 +784,16 @@ class _RiwayatPageState extends State<RiwayatPage> {
                         const Riwayat2Page()),
               );
               if (result is String) {
-                setState(() =>
-                    _selectedJenis = result);
+                setState(() => _selectedJenis = result);
+                if (result == 'Absensi') {
+                  // Tunda sampai animasi transisi pop selesai render,
+                  // supaya tidak numpuk sama query Firestore + rebuild
+                  // berat (penyebab "acquireNextBufferLocked: Already
+                  // acquired max frames").
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) _loadAbsensi();
+                  });
+                }
               }
             },
           ),
@@ -410,6 +858,9 @@ class _RiwayatPageState extends State<RiwayatPage> {
             setState(() {
               _selectedTanggal = v;
               _applyTanggalFilter();
+            });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _loadAbsensi();
             });
           },
         ),

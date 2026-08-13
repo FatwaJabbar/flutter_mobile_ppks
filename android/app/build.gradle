@@ -6,11 +6,28 @@ plugins {
 }
 
 android {
-    namespace = "com.example.flutter_mobile_ppks"
+    namespace = "com.ppks.kawalkebun"
     compileSdk = 36
 
+    signingConfigs {
+        release {
+            // Mencari key.properties di folder android/app/
+            def keyProps = new Properties()
+            def keyPropsFile = file('key.properties')
+            
+            if (keyPropsFile.exists()) {
+                keyProps.load(new FileInputStream(keyPropsFile))
+                
+                storeFile = file(keyProps['storeFile'])
+                storePassword = keyProps['storePassword']
+                keyAlias = keyProps['keyAlias']
+                keyPassword = keyProps['keyPassword']
+            }
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.example.flutter_mobile_ppks"
+        applicationId = "com.ppks.kawalkebun"
         minSdk = flutter.minSdkVersion
         targetSdk = 36
         versionCode = flutter.versionCode
@@ -28,7 +45,14 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // Menggunakan tanda '=' untuk kompatibilitas AGP baru
+            signingConfig = signingConfigs.release
+            
+            minifyEnabled false
+            shrinkResources false
+        }
+        debug {
+            signingConfig = signingConfigs.debug
         }
     }
 }

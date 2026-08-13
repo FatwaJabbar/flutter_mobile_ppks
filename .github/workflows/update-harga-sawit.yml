@@ -1,0 +1,40 @@
+name: Update Harga Sawit
+
+on:
+  # Bisa dijalankan manual kapan saja dari tab Actions di GitHub,
+  # dengan opsi menimpa daftar URL lewat input (tanpa perlu edit sources.json).
+  workflow_dispatch:
+    inputs:
+      urls_json:
+        description: 'Opsional: JSON array url untuk override sources.json, contoh: [{"type":"tbs","url":"https://..."}]'
+        required: false
+        default: ''
+
+  # Otomatis jalan tanggal 1 tiap bulan jam 03:00 UTC (10:00 WIB),
+  # membaca daftar link dari scripts/sources.json.
+  schedule:
+    - cron: '0 3 1 * *'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm install
+
+      - name: Jalankan scraper
+        working-directory: scripts
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          URLS_JSON: ${{ github.event.inputs.urls_json }}
+        run: node scrape-price.js

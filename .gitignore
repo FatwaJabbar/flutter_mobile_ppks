@@ -43,8 +43,32 @@ app.*.map.json
 /android/app/release
 
 # Firebase & Google secrets
+ios/Runner/GoogleService-Info.plist  
 android/app/google-services.json
 android/app/client_secret_*.json
 
-lib/firebase_import_tbs/serviceAccountKey.json
+serviceAccountKey.json
+**/serviceAccountKey.json
 
+# Signing keys (VERY IMPORTANT - DO NOT COMMIT)
+*.jks
+*.pem
+upload-keystore-new.jks
+upload_certificate.pem
+
+# Flutter metadata
+.metadata
+
+# Keystore properties (contains passwords)
+key.properties
+android/key.properties
+
+# ================= Node.js (scraper harga sawit) =================
+# Dependency Node.js -- di-install ulang otomatis oleh GitHub Actions / npm install,
+# tidak perlu (dan sebaiknya tidak) ikut ke-commit karena isinya ribuan file pihak ketiga.
+node_modules/
+scripts/node_modules/
+
+# Env lokal -- kalau kamu test scraper di laptop pakai file .env berisi API key
+.env
+scripts/.env
